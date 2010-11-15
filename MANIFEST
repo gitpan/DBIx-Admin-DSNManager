@@ -1,0 +1,17 @@
+.gitignore
+Build.PL
+Changelog.ini
+CHANGES
+lib/DBIx/Admin/DSNManager.pm
+Makefile.PL
+MANIFEST			This list of files
+META.yml
+README
+scripts/default.options.pl
+scripts/file.homedir.pl
+scripts/report.dsn.ini.pl
+scripts/synopsis.pl
+t/dsn.ini
+t/new.file.t
+t/old.file.t
+t/pod.t

@@ -1,0 +1,32 @@
+---
+abstract: 'Manage a file of DSNs, for both testing and production'
+author:
+  - 'Ron Savage <ron@savage.net.au>'
+build_requires:
+  Test::More: 0.96
+  Test::Pod: 1.41
+configure_requires:
+  Module::Build: 0.36
+generated_by: 'Module::Build version 0.3607'
+license: artistic
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: DBIx-Admin-DSNManager
+provides:
+  DBIx::Admin::DSNManager:
+    file: lib/DBIx/Admin/DSNManager.pm
+    version: 1.00
+requires:
+  Config::Tiny: 2.12
+  DBI: 1.612
+  File::HomeDir: 0.93
+  File::Slurp: 9999.13
+  File::Spec: 3.31
+  File::Temp: 0.22
+  Hash::FieldHash: 0.1
+  Try::Tiny: 0.06
+  common::sense: 3.3
+resources:
+  license: http://www.perlfoundation.org/artistic_license_1_0
+version: 1.00
