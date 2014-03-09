@@ -1,29 +1,89 @@
 package DBIx::Admin::DSNManager;
 
-use common::sense;
-use warnings 'uninitialized';
+use strict;
+use warnings;
 
 use Config::Tiny;
 
-use File::HomeDir; # For my_dist_config().
-use File::Slurp;   # For write_file.
-use File::Spec;    # For catdir().
+use File::Slurp; # For write_file.
 
-use Hash::FieldHash ':all';
+use Moo;
 
-use Try::Tiny;
+has active =>
+(
+	is       => 'rw',
+	default  => sub{return 0},
+	required => 0,
+);
 
-fieldhash my %active          => 'active';
-fieldhash my %attributes      => 'attributes';
-fieldhash my %config          => 'config';
-fieldhash my %file_name       => 'file_name';
-fieldhash my %password        => 'password';
-fieldhash my %use_for_testing => 'use_for_testing';
-fieldhash my %username        => 'username';
-fieldhash my %verbose         => 'verbose';
+has attributes =>
+(
+	is       => 'rw',
+	default  => sub{return {AutoCommit => 1, PrintError => 0, RaiseError => 1} },
+	required => 0,
+);
 
-our $errstr  = '';
-our $VERSION = '1.00';
+has config =>
+(
+	is       => 'rw',
+	default  => sub{return undef},
+	required => 0,
+);
+
+has file_name =>
+(
+	is       => 'rw',
+	default  => sub{return ''},
+	required => 0,
+);
+
+has password =>
+(
+	is       => 'rw',
+	default  => sub{return ''},
+	required => 0,
+);
+
+has use_for_testing =>
+(
+	is       => 'rw',
+	default  => sub{return 0},
+	required => 0,
+);
+
+has username =>
+(
+	is       => 'rw',
+	default  => sub{return ''},
+	required => 0,
+);
+
+has verbose =>
+(
+	is       => 'rw',
+	default  => sub{return ''},
+	required => 0,
+);
+
+our $VERSION = '2.00';
+
+# -----------------------------------------------
+
+sub BUILD
+{
+	my($self) = @_;
+
+	if ($self -> file_name && ! $self -> config)
+	{
+		# read() initializes config(), and validate() defaults to it.
+		# So we don't need to pass config() to validate(), but the
+		# latter returns a {}, which we need to save in config().
+
+		$self -> read($self -> file_name);
+		$self -> config($self -> validate);
+	}
+
+} # End of BUILD.
 
 # -----------------------------------------------
 
@@ -38,27 +98,11 @@ sub hashref2string
 
 # -----------------------------------------------
 
-sub init
-{
-	my($self, $arg)        = @_;
-	$$arg{active}          ||= 0;
-	$$arg{attributes}      ||= {AutoCommit => 1, PrintError => 0, RaiseError => 1};
-	$$arg{config}          ||= undef;
-	$$arg{file_name}       ||= '';
-	$$arg{password}        ||= '';
-	$$arg{use_for_testing} ||= 0;
-	$$arg{username}        ||= '';
-	$$arg{verbose}         ||= 0;
-
-} # End of init.
-
-# -----------------------------------------------
-
 sub _keys
 {
 	my($self) = @_;
 
-	return (qw/dsn username password attributes active use_for_testing/);
+	return (qw/active attributes dsn password use_for_testing username/);
 
 } # End of _keys.
 
@@ -80,60 +124,13 @@ sub _log
 
 # -----------------------------------------------
 
-sub new
-{
-	my($class, %arg) = @_;
-
-	$class -> init(\%arg);
-
-	my($self);
-
-	try
-	{
-		$self  = from_hash(bless({}, $class), \%arg);
-
-		# Initialize file_name here and not in init(), so that if it dies, we catch it.
-
-		if (! $self -> file_name)
-		{
-			$self -> file_name
-			(
-				File::Spec -> catdir
-				(
-					File::HomeDir -> my_dist_config('DBIx-Admin-DSNManager', {create => 1}), 'dsn.ini'
-				)
-			);
-		}
-
-		if (! $self -> config)
-		{
-			$self -> read($self -> file_name);
-		}
-
-		# We save the result of $self -> validate
-		# because it incorporates the default values.
-
-		$self -> config($self -> validate);
-	}
-	catch
-	{
-		$errstr = $_;
-		$self   = undef;
-	};
-
-	return $self;
-
-} # End of new.
-
-# -----------------------------------------------
-
 sub read
 {
 	my($self, $file_name) = @_;
 
 	$self -> _log("Reading: $file_name");
 
-	my($config) = Config::Tiny -> read($file_name) || die $Config::Tiny::errstr;
+	my($config) = Config::Tiny -> read($file_name) || die "$Config::Tiny::errstr\n";
 	$config     = {%$config};
 
 	# For each DSN, we have to convert the attributes from a string to a hashref.
@@ -168,6 +165,8 @@ sub report
 
 		for my $key ($self -> _keys)
 		{
+			next if (! exists $$config{$section}{$key});
+
 			if ($key eq 'attributes')
 			{
 				$attr = $$config{$section}{$key};
@@ -197,7 +196,9 @@ sub string2hashref
 	{
 		if ($s =~ m/^\{\s*([^}]*)\}$/)
 		{
-			my(@attr) = map{split(/\s*=>\s*/)} split(/\s*,\s*/, $1);
+			my(@attr) = map{s/([\"\'])(.*)\1/$2/; $_} map{split(/\s*=>\s*/)} split(/\s*,\s*/, $1);
+
+			die "Invalid syntax for hashref: $s\n" if ( ( (scalar @attr) % 2) != 0);
 
 			if (@attr)
 			{
@@ -206,7 +207,7 @@ sub string2hashref
 		}
 		else
 		{
-			die "Invalid syntax for hashref: $s";
+			die "Invalid syntax for hashref: $s\n";
 		}
 	}
 
@@ -223,7 +224,7 @@ sub validate
 
 	if (! $config || (ref($config) ne 'HASH') )
 	{
-		die 'You must use new(config => {...}) or new(file_name => $name) or $object -> config({...})';
+		die "You must use new(config => {...}) or new(file_name => 'name') or \$object -> config({...})\n";
 	}
 
 	my($count) = 0;
@@ -244,9 +245,11 @@ sub validate
 				}
 				else
 				{
-					die "Section $section has no value for the 'dsn' key";
+					die "Section $section has no value for the 'dsn' key\n";
 				}
 			}
+
+			next if (! exists $$config{$section}{$key});
 
 			# If not set, use the default.
 
@@ -259,7 +262,7 @@ sub validate
 
 	if ($count == 0)
 	{
-		die "No sections found";
+		die "No sections found\n";
 	}
 
 	return $config;
@@ -297,6 +300,8 @@ sub write
 
 		for my $key ($self -> _keys)
 		{
+			next if (! exists $$config{$section}{$key});
+
 			$s = $$config{$section}{$key};
 
 			# For each DSN, we have to convert the attributes from a hashref to a string.
@@ -320,48 +325,53 @@ sub write
 
 1;
 
-=pod
-
 =head1 NAME
 
-L<DBIx::Admin::DSNManager> - Manage a file of DSNs, for both testing and production
+DBIx::Admin::DSNManager - Manage a file of DSNs, for both testing and production
 
 =head1 Synopsis
 
-	#!/usr/bin/perl
+	#!/usr/bin/env perl
 
-	use common::sense;
-	use warnings 'uninitialized';
+	use strict;
+	use warnings;
 
 	use DBIx::Admin::DSNManager;
 
+	us Try::Tiny;
+
 	# --------------------------
 
-	my($man1) = DBIx::Admin::DSNManager -> new
-	(
-		config  => {'Pg.1' => {dsn => 'dbi:Pg:dbname=test', username => 'me', active => 1} },
-		verbose => 1,
-	) || die $DBIx::Admin::DSNManager::errstr;
+	try
+	{
+		my($man1) = DBIx::Admin::DSNManager -> new
+		(
+			config  => {'Pg.1' => {dsn => 'dbi:Pg:dbname=test', username => 'me', active => 1} },
+			verbose => 1,
+		);
 
-	my($file_name) = '/tmp/dsn.ini';
+		my($file_name) = '/tmp/dsn.ini';
 
-	$man1 -> write($file_name);
+		$man1 -> write($file_name);
 
-	my($man2) = DBIx::Admin::DSNManager -> new
-	(
-		file_name => $file_name,
-		verbose   => 1,
-	) || die $DBIx::Admin::DSNManager::errstr;
+		my($man2) = DBIx::Admin::DSNManager -> new
+		(
+			file_name => $file_name,
+			verbose   => 1,
+		);
 
-	$man2 -> report;
+		$man2 -> report;
+	}
+	catch
+	{
+		print "DBIx::Admin::DSNManager died. Error: $_";
+	};
 
 See scripts/synopsis.pl.
 
 =head1 Description
 
 L<DBIx::Admin::DSNManager> manages a file of DSNs, for both testing and production.
-
-The default directory and file name ('dsn.ini') are discussed in L</Method: new()>, under file_name.
 
 The INI-style format was selected, rather than, say, using an SQLite database, so that casual users could edit
 the file without needing to know SQL and without having to install the command line program sqlite3.
@@ -371,7 +381,7 @@ Each DSN is normally for something requiring manual preparation, such as creatin
 In the case of SQLite, etc, where manual intervention is not required, you can still put the DSN in
 dsn.ini.
 
-One major use of this module is to avoid environment variable overload, since it's common to test Perl modules
+One major use of this module is to avoid environment variable overload, since it is common to test Perl modules
 by setting the env vars $DBI_DSN, $DBI_USER and $DBI_PASS.
 
 But then the problem becomes: What do you do when you want to run tests against a set of databases servers?
@@ -422,7 +432,7 @@ On disk, dsn.ini is a typical INI-style file. In RAM it is a hashref of config o
 
 	config => {'Pg.1' => {dsn => 'dbi:Pg:dbname=test', ...}, 'Pg.2' => {...} }
 
-where config is the name of this module's getter/setter which provides access to the hashref.
+where config is the name of the module getter/setter which provides access to the hashref.
 
 =over 4
 
@@ -532,14 +542,13 @@ L<Config::Tiny> does not recognize comments at the ends of lines. So:
 
 key = value # A comment.
 
-sets key to 'value # A comment.', which is probably not what was meant.
+sets key to 'value # A comment.', which is probably not what you intended.
 
-=head1 Method: new()
+=head1 Constructor and Initialization
 
-Calling C<new()> returns a object of type L<DBIx::Admin::DSNManager>, or - if C<new()> fails - it returns undef.
-For details see L</Trouble with Errors>.
+Calling C<new()> returns a object of type L<DBIx::Admin::DSNManager>, or dies.
 
-C<new()> takes a hash of key/value pairs, some of which might mandatory. Further, some combinations
+C<new()> takes a hash of key/value pairs, some of which might be mandatory. Further, some combinations
 might be mandatory.
 
 The keys are listed here in alphabetical order.
@@ -560,74 +569,71 @@ This hashref is keyed by section name, with each key pointing to a hashref of ds
 
 	config => {'Pg.1' => {dsn => 'dbi:Pg:dbname=test', ...}, 'Pg.2' => {...} }
 
+Default: undef.
+
 =item o file_name => $string
 
 Specifies the name of the file holding the DSNs.
 
-If the $string is an absolute path to a file, it is used as-is.
-
-If it is not absolute, it is assumed to be relative to this module's configuration directory, which is
-determined by:
-
-my($config_dir) = File::HomeDir -> my_dist_config('DBIx-Admin-DSNManager', {create => 1});
-
-See L<File::HomeDir> for details.
+If specified, the code reads this file and populates the hashref returned by C<config()>.
 
 This key is optional.
 
-The default value is "$config_dir/dsn.ini".
+Default: ''.
 
 =item o verbose => 0 | 1
 
 Specify more or less output.
 
-The default value is 0.
+Default: 0.
 
 =back
 
-=head1 Method: config([{...}])
+=head1 Methods
+
+=head2 config([{...}])
+
+Here, the [] indicate an optional parameter.
 
 Get or set the internal config hashref holding all the DSN data.
-
-The [] mean the hashref parameter is optional.
 
 If called as config({...}), set the config hashref to the parameter.
 
 If called as config(), return the config hashref.
 
-=head1 Method: hashref2string($hashref)
+=head2 hashref2string($hashref)
 
 Returns a string corresponding to the $hashref.
 
 {} is converted to '{}'.
 
-=head1 Method: read($file_name)
+=head2 read($file_name)
 
 Read $file_name using L<Config::Tiny> and set the config hashref.
 
-=head1 Method: report([{...}])
+=head2 report([{...}])
+
+Here, the [] indicate an optional parameter.
 
 If called as $object -> report, print both $object -> file_name, and the contents of the config hashref, to STDERR.
 
-If called as $object -> report({...}), print just the contents of the hashref to STDERR.
+If called as $object -> report({...}), print just the contents of the hashref, to STDERR.
 
-The [] mean the hashref parameter is optional.
+=head2 string2hashref($s)
 
-=head1 Method: string2hashref($s)
-
-Returns a hashref built from the string, or the empty string.
+Returns a hashref built from the string.
 
 The string is expected to be something like '{AutoCommit => 1, PrintError => 0}'.
 
 The empty string is returned as {}.
 
-=head1 Method: validate([{...}])
+=head2 validate([{...}])
+
+Here, the [] indicate an optional parameter.
 
 Validate the given or config hashref.
 
-Returns the validated hashref, with defaults filled in.
-
-The [] mean the hashref parameter is optional.
+Returns the validated hashref.
 
 If a hashref is not supplied, validate the config one.
 
@@ -641,7 +647,9 @@ Currently, the checks are:
 
 =back
 
-=head1 Method: write([$file_name,][{...}])
+=head2 write([$file_name,][{...}])
+
+Here, the [] indicate an optional parameter.
 
 Write the given or config hashref to $file_name.
 
@@ -655,27 +663,11 @@ If called as $object -> write({...}), write the given hashref to $object -> file
 
 L<File::Slurp> is used to write this file, since these hashes are not of type C<Config::Tiny>.
 
-=head1 Troubleshooting
+=head2 See Also
 
-=head2 Trouble with Errors
+L<DBIx::Admin::CreateTable>.
 
-When object construction fails, C<new()> sets $DBIx::Admin::DSNManager::errstr and returns undef.
-This means you can use this idiom:
-
-	my($dsn_manager) = DBIx::Admin::DSNManager -> new(...) || process_error($DBIx::Admin::DSNManager::errstr);
-
-However, when methods detect errors they die, so after successful object construction, you can do:
-
-	use Try::Tiny;
-
-	try
-	{
-		$dsn_manager -> some_method_which_may_die;
-	}
-	catch
-	{
-		process_error($_); # Because $_ holds the error message.
-	};
+L<DBIx::Admin::TableInfo>.
 
 =head1 Version Numbers
 
@@ -683,7 +675,7 @@ Version numbers < 1.00 represent development versions. From 1.00 up, they are pr
 
 =head1 Support
 
-Log a bug on RT: L<https://rt.cpan.org/Public/Dist/Display.html?Name=Test-Setup-Database>.
+Log a bug on RT: L<https://rt.cpan.org/Public/Dist/Display.html?Name=DBIx-Admin-DSNManager>.
 
 =head1 Author
 

@@ -1,7 +1,7 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
-use common::sense;
-use warnings 'uninitialized';
+use strict;
+use warnings;
 
 use File::HomeDir;
 

@@ -1,7 +1,7 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
-use common::sense;
-use warnings 'uninitialized';
+use strict;
+use warnings;
 
 use DBIx::Admin::DSNManager;
 
@@ -13,7 +13,7 @@ use FindBin;
 
 my($manager) = DBIx::Admin::DSNManager -> new
 (
-	file_name => File::Spec -> catdir($FindBin::Bin, '..', 't', 'dsn.ini'),
+	file_name => File::Spec -> catdir('t', 'dsn.ini'),
 	verbose   => 1,
 ) || die $DBIx::Admin::DSNManager::errstr;
 

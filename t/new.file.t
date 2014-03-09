@@ -1,11 +1,13 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
-use common::sense;
-use warnings 'uninitialized';
+use strict;
+use warnings;
 
 use File::Temp;
 
 use Test::More;
+
+use Try::Tiny;
 
 # Start at 1 since $test_count++ in BEGIN() does not work :-).
 
@@ -25,53 +27,61 @@ my(%data) =
 	use_for_testing => 1,
 	username        => 'a_user',
 );
-my($man1) = DBIx::Admin::DSNManager -> new
-(
-	config  =>
-	{
-		$data{section} =>
-		{
-			active          => $data{active},
-			dsn             => $data{dsn},
-			use_for_testing => $data{use_for_testing},
-			username        => $data{username},
-		}
-	},
-	verbose => 1,
-) || BAIL_OUT($DBIx::Admin::DSNManager::errstr);
 
-isa_ok($man1, 'DBIx::Admin::DSNManager', 'Class of first object');
-
-$test_count++;
-
-my($temp_file_handle, $temp_file_name) = File::Temp::tempfile
-(
-	DIR      => File::Spec -> tmpdir,
-	EXLOCK   => 0,
-	SUFFIX   => '.dsn.ini',
-	TEMPLATE => 'XXXX',
-	UNLINK   => 1,
-);
-
-$man1 -> write($temp_file_name);
-
-my($man2) = DBIx::Admin::DSNManager -> new
-(
-	file_name => $temp_file_name,
-	verbose   => 1,
-) || BAIL_OUT($DBIx::Admin::DSNManager::errstr);
-
-isa_ok($man1, 'DBIx::Admin::DSNManager', 'Class of second object');
-
-$test_count++;
-
-my($config) = $man2 -> config;
-
-for my $key (qw/dsn username active use_for_testing/)
+try
 {
-	ok($$config{$data{section} }{$key} eq $data{$key}, "Recovered $key from file");
+	my($man1) = DBIx::Admin::DSNManager -> new
+	(
+		config  =>
+		{
+			$data{section} =>
+			{
+				active          => $data{active},
+				dsn             => $data{dsn},
+				use_for_testing => $data{use_for_testing},
+				username        => $data{username},
+			}
+		},
+		verbose => 1,
+	);
+
+	isa_ok($man1, 'DBIx::Admin::DSNManager', 'Class of first object');
 
 	$test_count++;
+
+	my($temp_file_handle, $temp_file_name) = File::Temp::tempfile
+	(
+		DIR      => File::Spec -> tmpdir,
+		EXLOCK   => 0,
+		SUFFIX   => '.dsn.ini',
+		TEMPLATE => 'XXXX',
+		UNLINK   => 1,
+	);
+
+	$man1 -> write($temp_file_name);
+
+	my($man2) = DBIx::Admin::DSNManager -> new
+	(
+		file_name => $temp_file_name,
+		verbose   => 1,
+	);
+
+	isa_ok($man1, 'DBIx::Admin::DSNManager', 'Class of second object');
+
+	$test_count++;
+
+	my($config) = $man2 -> config;
+
+	for my $key (qw/dsn username active use_for_testing/)
+	{
+		ok($$config{$data{section} }{$key} eq $data{$key}, "Recovered $key from file");
+
+		$test_count++;
+	}
 }
+catch
+{
+	BAIL_OUT($_);
+};
 
 done_testing($test_count);
