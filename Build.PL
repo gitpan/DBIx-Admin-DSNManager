@@ -11,8 +11,9 @@ Module::Build -> new
 	dist_author    => 'Ron Savage <ron@savage.net.au>',
 	build_requires =>
 	{
-		'Test::More' => 0.96,
-#		'Test::Pod'  => 1.45, # Make it optional. See t/pod.t
+		'Test::More'    => 0.96,
+#		'Test::Pod'     => 1.45, # Make it optional. See t/pod.t
+		'Test::Version' => 1.002003,
 	},
 	configure_requires =>
 	{
@@ -21,7 +22,6 @@ Module::Build -> new
 	requires =>
 	{
 		'Config::Tiny' => 2.12,
-		'DBI'          => 1.612,
 		'File::Slurp'  => 9999.13,
 		'File::Spec'   => 3.31,
 		'File::Temp'   => 0.22,

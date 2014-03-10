@@ -7,8 +7,6 @@ use DBIx::Admin::DSNManager;
 
 use File::Spec;
 
-use FindBin;
-
 # --------------------------
 
 my($manager) = DBIx::Admin::DSNManager -> new

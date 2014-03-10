@@ -4,6 +4,7 @@ author:
   - 'Ron Savage <ron@savage.net.au>'
 build_requires:
   Test::More: 0.96
+  Test::Version: 1.002003
 configure_requires:
   Module::Build: 0.38
 dynamic_config: 1
@@ -16,10 +17,9 @@ name: DBIx-Admin-DSNManager
 provides:
   DBIx::Admin::DSNManager:
     file: lib/DBIx/Admin/DSNManager.pm
-    version: 2.00
+    version: 2.01
 requires:
   Config::Tiny: 2.12
-  DBI: 1.612
   File::Slurp: 9999.13
   File::Spec: 3.31
   File::Temp: 0.22
@@ -29,4 +29,4 @@ requires:
   warnings: 0
 resources:
   license: http://www.perlfoundation.org/artistic_license_2_0
-version: 2.00
+version: 2.01

@@ -1,5 +1,10 @@
 Revision history for Perl extension DBIx::Admin::DSNManager.
 
+2.01  Mon Mar 10 13:30:55 2014
+	- Add Test::Version to the pre-reqs.
+	- Remove FindBin from pre-reqs.
+	- Remove scripts/find.homedir.pl.
+
 2.00  Thu Mar  6 09:45:07 2014
 	- Replace /usr/bin/perl with /usr/bin/env perl.
 	- Replace common::sense with use strict and use warnings, to get uninit var warnings.

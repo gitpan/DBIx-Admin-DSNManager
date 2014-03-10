@@ -8,7 +8,6 @@ META.json
 META.yml
 README
 scripts/default.options.pl
-scripts/file.homedir.pl
 scripts/pod2html.sh
 scripts/report.dsn.ini.pl
 scripts/synopsis.pl

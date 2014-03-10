@@ -28,17 +28,17 @@ WriteMakefile
 	PL_FILES  => {},
 	PREREQ_PM =>
 	{
-		'Config::Tiny' => 2.12,
-		'DBI'          => 1.612,
-		'File::Slurp'  => 9999.13,
-		'File::Spec'   => 3.31,
-		'File::Temp'   => 0.22,
-		'Moo'          => 1.004002,
-		'Test::More'   => 0.96,
-#		'Test::Pod'    => 1.45, # Make it optional. See t/pod.t
-		'Try::Tiny'    => 0.06,
-		'strict'       => 0,
-		'warnings'     => 0,
+		'Config::Tiny'  => 2.12,
+		'File::Slurp'   => 9999.13,
+		'File::Spec'    => 3.31,
+		'File::Temp'    => 0.22,
+		'Moo'           => 1.004002,
+		'Test::More'    => 0.96,
+#		'Test::Pod'     => 1.45, # Make it optional. See t/pod.t
+		'Test::Version' => 1.002003,
+		'Try::Tiny'     => 0.06,
+		'strict'        => 0,
+		'warnings'      => 0,
 	},
 	VERSION_FROM => 'lib/DBIx/Admin/DSNManager.pm',
 );
